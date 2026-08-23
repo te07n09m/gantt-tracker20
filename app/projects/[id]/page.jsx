@@ -70,21 +70,20 @@ export default function ProjectDetailPage({ params }) {
     }
   }, [projectId]);
 
-  // 自動スクロール処理の修正
+  // 今日への自動スクロール
   useEffect(() => {
-    // project が読み込まれ、DOMにコンテナが存在しない場合は処理しない
     if (!project || !scrollContainerRef.current || daysList.length === 0) return;
 
     const todayIndex = daysList.findIndex((d) => formatDateStr(d) === todayStr);
     if (todayIndex === -1) return;
 
-    // DOMの描画完了を待つために setTimeout を使用
     const timer = setTimeout(() => {
       if (!scrollContainerRef.current) return;
 
       const cellWidth = 40;
+      const leftColWidth = 72; // 操作列の幅
       const containerWidth = scrollContainerRef.current.clientWidth;
-      const scrollPos = todayIndex * cellWidth - containerWidth / 2 + cellWidth / 2;
+      const scrollPos = todayIndex * cellWidth - (containerWidth - leftColWidth) / 2 + cellWidth / 2;
 
       scrollContainerRef.current.scrollTo({
         left: Math.max(0, scrollPos),
@@ -93,7 +92,7 @@ export default function ProjectDetailPage({ params }) {
     }, 150);
 
     return () => clearTimeout(timer);
-  }, [project, daysList, todayStr]); // ← 依存配列に project を追加
+  }, [project, daysList, todayStr]);
 
   const saveTasks = (updated) => {
     setTasks(updated);
@@ -191,9 +190,9 @@ export default function ProjectDetailPage({ params }) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-800 flex flex-col" onClick={() => setOpenMenuTaskId(null)}>
-      {/* App Header */}
-      <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between sticky top-0 z-20 shadow-sm">
+    <div className="h-screen bg-gray-50 text-gray-800 flex flex-col overflow-hidden" onClick={() => setOpenMenuTaskId(null)}>
+      {/* Header */}
+      <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between z-40 shadow-sm flex-shrink-0">
         <div className="flex items-center gap-2">
           <Link href="/" className="p-1 text-gray-500 hover:text-gray-800 rounded-full">
             <ArrowLeft className="w-5 h-5" />
@@ -214,46 +213,19 @@ export default function ProjectDetailPage({ params }) {
         </button>
       </header>
 
-      {/* Main Grid View */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <div className="flex-1 overflow-x-auto flex relative">
-          {/* 左側：操作専用スリム列 (w-18 = 72px) + 完全固定タスク名レイヤー */}
-          <div className="w-18 min-w-[72px] bg-white border-r border-gray-200 z-20 sticky left-0 shadow-[2px_0_5px_rgba(0,0,0,0.03)] flex flex-col">
-            <div className="h-14 border-b border-gray-200 px-2 flex items-center justify-center font-medium text-[11px] text-gray-400 bg-gray-50">
+      {/* 縦・横スクロールを1つのコンテナに集約 */}
+      <div ref={scrollContainerRef} className="flex-1 overflow-auto relative bg-white">
+        <div className="min-w-max">
+          
+          {/* 【固定ヘッダー行】 (sticky top-0 で縦スクロール時に完全固定) */}
+          <div className="sticky top-0 z-30 flex bg-gray-50 border-b border-gray-200 h-14">
+            {/* 左上「操作」セル (sticky left-0 と top-0 の交差地点で最前面 z-40) */}
+            <div className="w-[72px] min-w-[72px] bg-gray-50 border-r border-gray-200 flex items-center justify-center font-medium text-[11px] text-gray-400 sticky left-0 z-40 shadow-[2px_0_5px_rgba(0,0,0,0.03)]">
               操作
             </div>
-            <div className="flex-1 divide-y divide-gray-100">
-              {rootTasks.length === 0 && (
-                <div className="p-2 text-[10px] text-gray-400 text-center py-6">なし</div>
-              )}
-              {rootTasks.map((task, index) => (
-                <TaskRowLeft
-                  key={task.id}
-                  task={task}
-                  subtasks={getSubtasks(task.id)}
-                  isExpanded={!!expandedTasks[task.id]}
-                  onToggleExpand={() => toggleExpand(task.id)}
-                  onToggleCompleted={toggleTaskCompleted}
-                  onEdit={(t) => {
-                    setEditingTask(t);
-                    setIsModalOpen(true);
-                  }}
-                  onDelete={handleDeleteTask}
-                  onMove={moveTask}
-                  onViewLog={(t) => setViewLogTask(t)}
-                  isFirst={index === 0}
-                  isLast={index === rootTasks.length - 1}
-                  openMenuTaskId={openMenuTaskId}
-                  setOpenMenuTaskId={setOpenMenuTaskId}
-                />
-              ))}
-            </div>
-          </div>
-
-          {/* 右側：ガントチャート・カレンダー領域 */}
-          <div ref={scrollContainerRef} className="flex-1 flex flex-col bg-white overflow-x-auto">
-            {/* カレンダーヘッダー (bg-gray-50 と min-w-max で背景色を途切れなく固定) */}
-            <div className="h-14 border-b border-gray-200 flex bg-gray-50 min-w-max sticky top-0 z-10">
+            
+            {/* 右側：日付ヘッダー列 */}
+            <div className="flex">
               {daysList.map((d) => {
                 const dateStr = formatDateStr(d);
                 const isToday = dateStr === todayStr;
@@ -273,23 +245,40 @@ export default function ProjectDetailPage({ params }) {
                 );
               })}
             </div>
-
-            {/* カレンダーボディ */}
-            <div className="flex-1 divide-y divide-gray-100 min-w-max">
-              {rootTasks.map((task) => (
-                <TaskRowRight
-                  key={task.id}
-                  task={task}
-                  subtasks={getSubtasks(task.id)}
-                  isExpanded={!!expandedTasks[task.id]}
-                  daysList={daysList}
-                  todayStr={todayStr}
-                  getBarColor={getBarColor}
-                  onToggleLog={toggleLog}
-                />
-              ))}
-            </div>
           </div>
+
+          {/* 【タスク一覧ボディ】 */}
+          <div className="divide-y divide-gray-100">
+            {rootTasks.length === 0 && (
+              <div className="p-4 text-xs text-gray-400 text-center">タスクがありません</div>
+            )}
+            {rootTasks.map((task, index) => (
+              <TaskRow
+                key={task.id}
+                task={task}
+                subtasks={getSubtasks(task.id)}
+                isExpanded={!!expandedTasks[task.id]}
+                daysList={daysList}
+                todayStr={todayStr}
+                getBarColor={getBarColor}
+                onToggleExpand={() => toggleExpand(task.id)}
+                onToggleCompleted={toggleTaskCompleted}
+                onEdit={(t) => {
+                  setEditingTask(t);
+                  setIsModalOpen(true);
+                }}
+                onDelete={handleDeleteTask}
+                onMove={moveTask}
+                onViewLog={(t) => setViewLogTask(t)}
+                onToggleLog={toggleLog}
+                isFirst={index === 0}
+                isLast={index === rootTasks.length - 1}
+                openMenuTaskId={openMenuTaskId}
+                setOpenMenuTaskId={setOpenMenuTaskId}
+              />
+            ))}
+          </div>
+
         </div>
       </div>
 
@@ -310,17 +299,21 @@ export default function ProjectDetailPage({ params }) {
   );
 }
 
-// 左側：アイコン・操作専用スリム行
-function TaskRowLeft({
+// 行コンポーネント（操作列 ＋ カレンダー・ガント列を一体化）
+function TaskRow({
   task,
   subtasks,
   isExpanded,
+  daysList,
+  todayStr,
+  getBarColor,
   onToggleExpand,
   onToggleCompleted,
   onEdit,
   onDelete,
   onMove,
   onViewLog,
+  onToggleLog,
   isFirst,
   isLast,
   openMenuTaskId,
@@ -337,220 +330,186 @@ function TaskRowLeft({
 
   return (
     <>
-      <div
-        className={`h-14 px-1 flex items-center justify-between text-xs hover:bg-gray-50 relative ${
-          isSub ? 'pl-3 bg-gray-50/50' : ''
-        }`}
-      >
-        <div className="flex items-center gap-0.5 z-10">
-          {!isSub && (
-            <button
-              onClick={onToggleExpand}
-              className={`p-0.5 text-gray-400 hover:text-gray-600 flex-shrink-0 ${!hasSub && 'opacity-0 cursor-default'}`}
-            >
-              {isExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-            </button>
-          )}
-
-          <button
-            onClick={() => onToggleCompleted(task.id)}
-            className="text-gray-400 hover:text-blue-600 flex-shrink-0 p-0.5"
-          >
-            {task.completed ? (
-              <CheckCircle2 className="w-4 h-4 text-gray-400 fill-gray-100" />
-            ) : (
-              <Circle className="w-4 h-4" />
+      <div className={`h-14 flex relative ${isSub ? 'bg-gray-50/30' : 'bg-white'}`}>
+        
+        {/* 【左側：操作列】 (sticky left-0 で横スクロール時に固定) */}
+        <div
+          className={`w-[72px] min-w-[72px] px-1 flex items-center justify-between text-xs border-r border-gray-200 sticky left-0 z-20 bg-white shadow-[2px_0_5px_rgba(0,0,0,0.03)] ${
+            isSub ? 'pl-3 !bg-gray-50' : ''
+          }`}
+        >
+          <div className="flex items-center gap-0.5 z-10">
+            {!isSub && (
+              <button
+                onClick={onToggleExpand}
+                className={`p-0.5 text-gray-400 hover:text-gray-600 flex-shrink-0 ${!hasSub && 'opacity-0 cursor-default'}`}
+              >
+                {isExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+              </button>
             )}
-          </button>
-        </div>
 
-        {/* 画面上に完全固定されるタスク名 */}
-        <div className="absolute left-[76px] top-1 z-10 pointer-events-none flex items-center">
-          <span
-            className={`text-[11px] font-semibold px-2 py-0.5 whitespace-nowrap truncate max-w-[200px] ${
-              task.completed ? 'line-through text-gray-400' : 'text-gray-800'
-            }`}
-          >
-            {isSub ? `↳ ${task.title}` : task.title}
-          </span>
-        </div>
-
-        {/* 3点リーダーボタン */}
-        <div className="relative flex-shrink-0 z-20">
-          <button
-            onClick={handleMenuClick}
-            className="p-1 text-gray-400 hover:text-gray-700 rounded-full hover:bg-gray-100"
-          >
-            <MoreVertical className="w-3.5 h-3.5" />
-          </button>
-
-          {/* Popover */}
-          {isMenuOpen && (
-            <div
-              className="absolute left-6 top-6 z-30 w-36 bg-white rounded-lg shadow-lg border border-gray-100 py-1 text-xs"
-              onClick={(e) => e.stopPropagation()}
+            <button
+              onClick={() => onToggleCompleted(task.id)}
+              className="text-gray-400 hover:text-blue-600 flex-shrink-0 p-0.5"
             >
-              <div className="px-3 py-1 font-semibold text-gray-800 border-b border-gray-100 truncate">
-                {task.title}
+              {task.completed ? (
+                <CheckCircle2 className="w-4 h-4 text-gray-400 fill-gray-100" />
+              ) : (
+                <Circle className="w-4 h-4" />
+              )}
+            </button>
+          </div>
+
+          {/* 画面上に固定されるタスク名 */}
+          <div className="absolute left-[76px] top-1 z-10 pointer-events-none flex items-center">
+            <span
+              className={`text-[11px] font-semibold px-2 py-0.5 whitespace-nowrap truncate max-w-[200px] ${
+                task.completed ? 'line-through text-gray-400' : 'text-gray-800'
+              }`}
+            >
+              {isSub ? `↳ ${task.title}` : task.title}
+            </span>
+          </div>
+
+          {/* 3点リーダー */}
+          <div className="relative flex-shrink-0 z-20">
+            <button
+              onClick={handleMenuClick}
+              className="p-1 text-gray-400 hover:text-gray-700 rounded-full hover:bg-gray-100"
+            >
+              <MoreVertical className="w-3.5 h-3.5" />
+            </button>
+
+            {isMenuOpen && (
+              <div
+                className="absolute left-6 top-6 z-30 w-36 bg-white rounded-lg shadow-lg border border-gray-100 py-1 text-xs"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="px-3 py-1 font-semibold text-gray-800 border-b border-gray-100 truncate">
+                  {task.title}
+                </div>
+
+                <button
+                  onClick={() => {
+                    onViewLog(task);
+                    setOpenMenuTaskId(null);
+                  }}
+                  className="w-full px-3 py-1.5 text-left flex items-center gap-2 text-gray-700 hover:bg-gray-50"
+                >
+                  <History className="w-3.5 h-3.5 text-blue-600" />
+                  過去の記録
+                </button>
+                <button
+                  onClick={() => {
+                    onEdit(task);
+                    setOpenMenuTaskId(null);
+                  }}
+                  className="w-full px-3 py-1.5 text-left flex items-center gap-2 text-gray-700 hover:bg-gray-50"
+                >
+                  <Edit2 className="w-3.5 h-3.5 text-gray-500" />
+                  編集
+                </button>
+
+                <div className="border-t border-gray-100 my-0.5" />
+
+                <button
+                  disabled={isFirst}
+                  onClick={() => {
+                    onMove(task.id, 'up');
+                    setOpenMenuTaskId(null);
+                  }}
+                  className="w-full px-3 py-1.5 text-left flex items-center gap-2 text-gray-700 hover:bg-gray-50 disabled:opacity-30 disabled:hover:bg-transparent"
+                >
+                  <ArrowUp className="w-3.5 h-3.5 text-gray-500" />
+                  上に移動
+                </button>
+
+                <button
+                  disabled={isLast}
+                  onClick={() => {
+                    onMove(task.id, 'down');
+                    setOpenMenuTaskId(null);
+                  }}
+                  className="w-full px-3 py-1.5 text-left flex items-center gap-2 text-gray-700 hover:bg-gray-50 disabled:opacity-30 disabled:hover:bg-transparent"
+                >
+                  <ArrowDown className="w-3.5 h-3.5 text-gray-500" />
+                  下に移動
+                </button>
+
+                <div className="border-t border-gray-100 my-0.5" />
+
+                <button
+                  onClick={() => {
+                    onDelete(task.id);
+                    setOpenMenuTaskId(null);
+                  }}
+                  className="w-full px-3 py-1.5 text-left flex items-center gap-2 text-red-600 hover:bg-red-50"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  削除
+                </button>
               </div>
-
-              <button
-                onClick={() => {
-                  onViewLog(task);
-                  setOpenMenuTaskId(null);
-                }}
-                className="w-full px-3 py-1.5 text-left flex items-center gap-2 text-gray-700 hover:bg-gray-50"
-              >
-                <History className="w-3.5 h-3.5 text-blue-600" />
-                過去の記録
-              </button>
-              <button
-                onClick={() => {
-                  onEdit(task);
-                  setOpenMenuTaskId(null);
-                }}
-                className="w-full px-3 py-1.5 text-left flex items-center gap-2 text-gray-700 hover:bg-gray-50"
-              >
-                <Edit2 className="w-3.5 h-3.5 text-gray-500" />
-                編集
-              </button>
-
-              <div className="border-t border-gray-100 my-0.5" />
-
-              <button
-                disabled={isFirst}
-                onClick={() => {
-                  onMove(task.id, 'up');
-                  setOpenMenuTaskId(null);
-                }}
-                className="w-full px-3 py-1.5 text-left flex items-center gap-2 text-gray-700 hover:bg-gray-50 disabled:opacity-30 disabled:hover:bg-transparent"
-              >
-                <ArrowUp className="w-3.5 h-3.5 text-gray-500" />
-                上に移動
-              </button>
-
-              <button
-                disabled={isLast}
-                onClick={() => {
-                  onMove(task.id, 'down');
-                  setOpenMenuTaskId(null);
-                }}
-                className="w-full px-3 py-1.5 text-left flex items-center gap-2 text-gray-700 hover:bg-gray-50 disabled:opacity-30 disabled:hover:bg-transparent"
-              >
-                <ArrowDown className="w-3.5 h-3.5 text-gray-500" />
-                下に移動
-              </button>
-
-              <div className="border-t border-gray-100 my-0.5" />
-
-              <button
-                onClick={() => {
-                  onDelete(task.id);
-                  setOpenMenuTaskId(null);
-                }}
-                className="w-full px-3 py-1.5 text-left flex items-center gap-2 text-red-600 hover:bg-red-50"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                削除
-              </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
+
+        {/* 【右側：ガントチャート & トラッカー領域】 */}
+        <div className="flex relative flex-1">
+          {/* レイヤー1: ガントチャートバー */}
+          <div className="absolute inset-0 flex items-center pt-3 pointer-events-none z-0">
+            {daysList.map((d) => {
+              const dateStr = formatDateStr(d);
+              const inRange = dateStr >= task.startDate && dateStr <= task.endDate;
+              const isStart = dateStr === task.startDate;
+              const isEnd = dateStr === task.endDate;
+
+              if (!inRange) return <div key={dateStr} className="w-10 min-w-[40px]" />;
+
+              return (
+                <div key={dateStr} className="w-10 min-w-[40px] h-5 flex items-center">
+                  <div
+                    className={`h-full w-full ${getBarColor(task)} ${
+                      isStart ? 'rounded-l-md' : ''
+                    } ${isEnd ? 'rounded-r-md' : ''} opacity-85 shadow-xs`}
+                  />
+                </div>
+              );
+            })}
+          </div>
+
+          {/* レイヤー2: 記録ボタン */}
+          <div className="absolute inset-0 flex pt-3 z-10">
+            {daysList.map((d) => {
+              const dateStr = formatDateStr(d);
+              const isLogged = !!task.logs?.[dateStr];
+              const isToday = dateStr === todayStr;
+
+              return (
+                <button
+                  key={dateStr}
+                  onClick={() => onToggleLog(task.id, dateStr)}
+                  className={`w-10 min-w-[40px] h-full border-r border-gray-100 flex items-center justify-center transition-colors hover:bg-black/5 active:bg-black/10 ${
+                    isToday ? 'bg-blue-50/20' : ''
+                  }`}
+                >
+                  {isLogged && (
+                    <div className="w-4 h-4 flex items-center justify-center">
+                      <Check strokeWidth={4} className="text-blue-600" />
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
       </div>
 
-      {/* サブタスク */}
+      {/* サブタスク再帰 */}
       {!isSub &&
         isExpanded &&
         subtasks.map((sub, sIdx) => (
-          <TaskRowLeft
-            key={sub.id}
-            task={sub}
-            subtasks={[]}
-            isExpanded={false}
-            onToggleExpand={() => {}}
-            onToggleCompleted={onToggleCompleted}
-            onEdit={onEdit}
-            onDelete={onDelete}
-            onMove={onMove}
-            onViewLog={onViewLog}
-            isFirst={sIdx === 0}
-            isLast={sIdx === subtasks.length - 1}
-            openMenuTaskId={openMenuTaskId}
-            setOpenMenuTaskId={setOpenMenuTaskId}
-            isSub={true}
-          />
-        ))}
-    </>
-  );
-}
-
-// 右側：ガントチャート＆記録セル行
-function TaskRowRight({
-  task,
-  subtasks,
-  isExpanded,
-  daysList,
-  todayStr,
-  getBarColor,
-  onToggleLog,
-  isSub = false,
-}) {
-  return (
-    <>
-      <div className={`h-14 flex relative ${isSub ? 'bg-gray-50/30' : ''}`}>
-        {/* レイヤー1: ガントチャートのバー */}
-        <div className="absolute inset-0 flex items-center pt-3 pointer-events-none">
-          {daysList.map((d) => {
-            const dateStr = formatDateStr(d);
-            const inRange = dateStr >= task.startDate && dateStr <= task.endDate;
-            const isStart = dateStr === task.startDate;
-            const isEnd = dateStr === task.endDate;
-
-            if (!inRange) return <div key={dateStr} className="w-10 min-w-[40px]" />;
-
-            return (
-              <div key={dateStr} className="w-10 min-w-[40px] h-5 flex items-center">
-                <div
-                  className={`h-full w-full ${getBarColor(task)} ${
-                    isStart ? 'rounded-l-md' : ''
-                  } ${isEnd ? 'rounded-r-md' : ''} opacity-85 shadow-xs`}
-                />
-              </div>
-            );
-          })}
-        </div>
-
-        {/* レイヤー2: トラッカー記録セル */}
-        <div className="absolute inset-0 flex pt-3">
-          {daysList.map((d) => {
-            const dateStr = formatDateStr(d);
-            const isLogged = !!task.logs?.[dateStr];
-            const isToday = dateStr === todayStr;
-
-            return (
-              <button
-                key={dateStr}
-                onClick={() => onToggleLog(task.id, dateStr)}
-                className={`w-10 min-w-[40px] h-full border-r border-gray-100 flex items-center justify-center transition-colors hover:bg-black/5 active:bg-black/10 ${
-                  isToday ? 'bg-blue-50/20' : ''
-                }`}
-              >
-                {isLogged && (
-                  <div className="w-4 h-4 flex items-center justify-center">
-                    <Check strokeWidth={4} className='text-blue-600' />
-                  </div>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* サブタスク */}
-      {!isSub &&
-        isExpanded &&
-        subtasks.map((sub) => (
-          <TaskRowRight
+          <TaskRow
             key={sub.id}
             task={sub}
             subtasks={[]}
@@ -558,7 +517,17 @@ function TaskRowRight({
             daysList={daysList}
             todayStr={todayStr}
             getBarColor={getBarColor}
+            onToggleExpand={() => {}}
+            onToggleCompleted={onToggleCompleted}
+            onEdit={onEdit}
+            onDelete={onDelete}
+            onMove={onMove}
+            onViewLog={onViewLog}
             onToggleLog={onToggleLog}
+            isFirst={sIdx === 0}
+            isLast={sIdx === subtasks.length - 1}
+            openMenuTaskId={openMenuTaskId}
+            setOpenMenuTaskId={setOpenMenuTaskId}
             isSub={true}
           />
         ))}
