@@ -278,9 +278,11 @@ export default function ProjectDetailPage({ params }) {
               />
             ))}
           </div>
-
         </div>
       </div>
+
+      {/* フッター */}
+      <footer className='min-h-14'></footer>
 
       <TaskModal
         isOpen={isModalOpen}
@@ -330,7 +332,7 @@ function TaskRow({
 
   return (
     <>
-      <div className={`h-14 flex relative ${isSub ? 'bg-gray-50/30' : 'bg-white'}`}>
+      <div className={`h-14 flex relative ${isSub ? 'bg-gray-50/30' : 'bg-white'} ${isMenuOpen ? 'z-30' : 'z-0'}`}>
         
         {/* 【左側：操作列】 (sticky left-0 で横スクロール時に固定) */}
         <div
@@ -382,7 +384,7 @@ function TaskRow({
 
             {isMenuOpen && (
               <div
-                className="absolute left-6 top-6 z-30 w-36 bg-white rounded-lg shadow-lg border border-gray-100 py-1 text-xs"
+                className="absolute left-6 top-6 z-50 w-36 bg-white rounded-lg shadow-lg border border-gray-100 py-1 text-xs"
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="px-3 py-1 font-semibold text-gray-800 border-b border-gray-100 truncate">

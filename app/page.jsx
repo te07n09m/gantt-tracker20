@@ -327,6 +327,9 @@ export default function Home() {
         )}
       </main>
 
+      {/* フッター */}
+      <footer className='min-h-14'></footer>
+
       {/* 新規プロジェクト作成モーダル */}
       {isCreateModalOpen && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
