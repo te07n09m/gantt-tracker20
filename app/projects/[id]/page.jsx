@@ -39,7 +39,7 @@ export default function ProjectDetailPage({ params }) {
   const [viewLogTask, setViewLogTask] = useState(null);
   const [openMenuTaskId, setOpenMenuTaskId] = useState(null);
 
-  const [centerDate] = useState(new Date());
+  const [centerDate, setCenterDate] = useState(() => new Date());
   const scrollContainerRef = useRef(null);
 
   const daysList = useMemo(() => {
@@ -50,7 +50,12 @@ export default function ProjectDetailPage({ params }) {
     return dates;
   }, [centerDate]);
 
-  const todayStr = useMemo(() => formatDateStr(new Date()), []);
+  const todayStr = useMemo(() => formatDateStr(centerDate), [centerDate]);
+
+  // ページを開いたタイミング（またはプロジェクト読み込み時）で基準日を最新の「今日」に更新する
+  useEffect(() => {
+    setCenterDate(new Date());
+  }, [projectId]);
 
   useEffect(() => {
     const projectsSaved = localStorage.getItem('gantt_tracker_projects');
@@ -363,13 +368,20 @@ function TaskRow({
           </div>
 
           {/* 画面上に固定されるタスク名 */}
-          <div className="absolute left-[76px] top-1 z-10 pointer-events-none flex items-center">
+          <div className="absolute left-[76px] top-1 z-10 pointer-events-none flex flex-col">
             <span
               className={`text-[11px] font-semibold px-2 py-0.5 whitespace-nowrap truncate max-w-[200px] ${
                 task.completed ? 'line-through text-gray-400' : 'text-gray-800'
               }`}
             >
               {isSub ? `↳ ${task.title}` : task.title}
+            </span>
+            <span
+              className={`text-[9px] font-semibold px-2 py-0.5 whitespace-nowrap truncate max-w-[200px] ${
+                task.completed ? 'line-through text-gray-400' : 'text-gray-800'
+              }`}
+            >
+              {task.startDate} ～ {task.endDate}
             </span>
           </div>
 
