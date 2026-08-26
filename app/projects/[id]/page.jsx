@@ -20,7 +20,12 @@ import {
 import TaskModal from '@/app/components/TaskModal';
 import TaskLogModal from '@/app/components/TaskLogModal';
 
-const formatDateStr = (date) => date.toISOString().split('T')[0];
+const formatDateStr = (date) => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
 const addDays = (date, days) => {
   const result = new Date(date);
   result.setDate(result.getDate() + days);
@@ -39,23 +44,18 @@ export default function ProjectDetailPage({ params }) {
   const [viewLogTask, setViewLogTask] = useState(null);
   const [openMenuTaskId, setOpenMenuTaskId] = useState(null);
 
-  const [centerDate, setCenterDate] = useState(() => new Date());
   const scrollContainerRef = useRef(null);
 
   const daysList = useMemo(() => {
+    const now = new Date();
     const dates = [];
     for (let i = -30; i <= 30; i++) {
-      dates.push(addDays(centerDate, i));
+      dates.push(addDays(now, i));
     }
     return dates;
-  }, [centerDate]);
+  }, [projectId]); // プロジェクトが変わるか、再レンダリング時に計算
 
-  const todayStr = useMemo(() => formatDateStr(centerDate), [centerDate]);
-
-  // ページを開いたタイミング（またはプロジェクト読み込み時）で基準日を最新の「今日」に更新する
-  useEffect(() => {
-    setCenterDate(new Date());
-  }, [projectId]);
+  const todayStr = useMemo(() => formatDateStr(new Date()), []);
 
   useEffect(() => {
     const projectsSaved = localStorage.getItem('gantt_tracker_projects');
@@ -179,7 +179,7 @@ export default function ProjectDetailPage({ params }) {
 
   const getBarColor = (task) => {
     if (task.completed) return 'bg-gray-400 border-gray-500';
-    if (task.endDate < todayStr) return 'bg-red-500 border-red-600';
+    if (task.endDate < todayStr) return 'bg-red-300 border-red-400';
     return 'bg-blue-300 border-blue-400';
   };
 
